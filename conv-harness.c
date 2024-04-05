@@ -336,6 +336,7 @@ int main(int argc, char ** argv)
   int16_t **** kernels;
   float *** control_output, *** output;
   long long mul_time;
+  long long dav_time;
   int width, height, kernel_order, nchannels, nkernels;
   struct timeval start_time;
   struct timeval stop_time;
@@ -371,9 +372,15 @@ int main(int argc, char ** argv)
 
   //DEBUGGING(write_out(A, a_dim1, a_dim2));
 
-  /* use a simple multichannel convolution routine to produce control result */
-  multichannel_conv(image, kernels, control_output, width,
+  // Davids one
+  gettimeofday(&start_time, NULL);
+  multichannel_conv(image, kernels, output, width,
                     height, nchannels, nkernels, kernel_order);
+
+  gettimeofday(&stop_time, NULL);
+  dav_time = (stop_time.tv_sec - start_time.tv_sec) * 1000000L +
+    (stop_time.tv_usec - start_time.tv_usec);
+//'
 
   /* record starting time of student's code*/
   gettimeofday(&start_time, NULL);
@@ -386,10 +393,11 @@ int main(int argc, char ** argv)
   gettimeofday(&stop_time, NULL);
   mul_time = (stop_time.tv_sec - start_time.tv_sec) * 1000000L +
     (stop_time.tv_usec - start_time.tv_usec);
+
+
   printf("Student conv time: %lld microseconds\n", mul_time);
-
+  printf("Davids conv time: %lld microseconds\n", dav_time);
   DEBUGGING(write_out(output, nkernels, width, height));
-
   /* now check that the student's multichannel convolution routine
      gives the same answer as the known working version */
   check_result(output, control_output, nkernels, width, height);
