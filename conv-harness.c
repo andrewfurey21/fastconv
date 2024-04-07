@@ -320,10 +320,24 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
                int width, int height, int nchannels, int nkernels,
                int kernel_order)
 {
-  // this call here is just dummy code that calls the slow, simple, correct version.
-  // insert your own code instead
-  multichannel_conv(image, kernels, output, width,
-                    height, nchannels, nkernels, kernel_order);
+  int h, w, x, y, c, m;
+
+  #pragma omp parallel for schedule(static)
+  for ( m = 0; m < nkernels; m++ ) {
+    for ( w = 0; w < width; w++ ) {
+      for ( h = 0; h < height; h++ ) {
+        double sum = 0.0;
+        for ( c = 0; c < nchannels; c++ ) {
+          for ( x = 0; x < kernel_order; x++) {
+            for ( y = 0; y < kernel_order; y++ ) {
+              sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+            }
+          }
+          output[m][w][h] = (float) sum;
+        }
+      }
+    }
+  }
 }
 
 int main(int argc, char ** argv)
@@ -374,13 +388,12 @@ int main(int argc, char ** argv)
 
   // Davids one
   gettimeofday(&start_time, NULL);
-  multichannel_conv(image, kernels, output, width,
+  multichannel_conv(image, kernels, control_output, width,
                     height, nchannels, nkernels, kernel_order);
 
   gettimeofday(&stop_time, NULL);
   dav_time = (stop_time.tv_sec - start_time.tv_sec) * 1000000L +
     (stop_time.tv_usec - start_time.tv_usec);
-//'
 
   /* record starting time of student's code*/
   gettimeofday(&start_time, NULL);
@@ -393,10 +406,9 @@ int main(int argc, char ** argv)
   gettimeofday(&stop_time, NULL);
   mul_time = (stop_time.tv_sec - start_time.tv_sec) * 1000000L +
     (stop_time.tv_usec - start_time.tv_usec);
-
-
   printf("Student conv time: %lld microseconds\n", mul_time);
   printf("Davids conv time: %lld microseconds\n", dav_time);
+  
   DEBUGGING(write_out(output, nkernels, width, height));
   /* now check that the student's multichannel convolution routine
      gives the same answer as the known working version */
