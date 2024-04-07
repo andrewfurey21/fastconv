@@ -408,6 +408,7 @@ int main(int argc, char ** argv)
     (stop_time.tv_usec - start_time.tv_usec);
   printf("Student conv time: %lld microseconds\n", mul_time);
   printf("Davids conv time: %lld microseconds\n", dav_time);
+  printf("Speedup: %fx\n", (float) dav_time / mul_time);
   
   DEBUGGING(write_out(output, nkernels, width, height));
   /* now check that the student's multichannel convolution routine
