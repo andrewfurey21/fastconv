@@ -59,7 +59,7 @@ void write_out(int16_t *** a, int dim0, int dim1, int dim2)
         printf("%d, ", a[i][j][k]);
       }
       // print end of line
-      printf("%f\n", a[i][j][dim2-1]);
+      printf("%d\n", a[i][j][dim2-1]);
     }
   }
 }
@@ -322,6 +322,33 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 {
   int h, w, x, y, c, m;
 
+  float* image_buffer = (float*)malloc(sizeof(float)*width*height*nchannels);
+  float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
+
+  //TODO:check that multiplication doesn't lead to overflow
+  #pragma omp parallel for schedule(static)
+  for ( w = 0; w < width; w++ ) {
+    for ( h = 0; h < height; h++ ) {
+      for ( c = 0; c < nchannels; c++ ) {
+        int image_index = w*height*nchannels + h*nchannels + c;
+        //printf("Image index:%d\n", image_index);
+        image_buffer[image_index] = image[w][h][c];
+      }
+    }
+  }
+
+  #pragma omp parallel for schedule(static)
+  for ( m = 0; m < nkernels; m++ ) {
+    for ( c = 0; c < nchannels; c++ ) {
+      for ( x = 0; x < kernel_order; x++) {
+        for ( y = 0; y < kernel_order; y++ ) {
+          int kernel_index = m*nchannels*kernel_order*kernel_order + c * kernel_order*kernel_order + x * kernel_order + y;
+          kernels_buffer[kernel_index] =  kernels[m][c][x][y];
+        }
+      }
+    }
+  }
+
   #pragma omp parallel for schedule(static)
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
@@ -330,7 +357,10 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-              sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+              int image_index = (w+x)*height*nchannels + (h+y)*nchannels + c;
+              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+              int kernel_index = m*nchannels*kernel_order*kernel_order + c * kernel_order*kernel_order + x * kernel_order + y;
+              sum += image_buffer[image_index] + kernels_buffer[kernel_index];
             }
           }
           output[m][w][h] = (float) sum;
