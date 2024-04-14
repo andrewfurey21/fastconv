@@ -363,31 +363,30 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
-        double sum = 0.0;
+        __m128 sum_vec = _mm_setzero_ps();
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-        for ( c = 0; c < nchannels; c++ ) {
+        for ( c = 0; c < nchannels; c+=4 ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              sum += image_buffer[image_index] * kernels_buffer[kernel_index];
-              //
+
               __m128 image_vector = _mm_loadu_ps(&image[w+x][h+y][c]);
               float kernel0 = (float)(kernels_buffer[kernel_index + 0]);
               float kernel1 = (float)(kernels_buffer[kernel_index + 1]);
               float kernel2 = (float)(kernels_buffer[kernel_index + 2]);
               float kernel3 = (float)(kernels_buffer[kernel_index + 3]);
               __m128 kernel_vector = _mm_set_ps(kernel0, kernel1, kernel2, kernel3);
-              __m128 dp = _mm_dp_ps(image_vector, kernel_vector, 0xFF);
-              float s = 0;
-              _mm_store_ss(&s, dp);
-              sum += s;
+              __m128 mul_image_kernel = _mm_mul_ps(image_vector, kernel_vector);
+              sum_vec = _mm_add_ps(sum_vec, mul_image_kernel);
               //__m128 kernel_vector = _mm_loadu_ps(&kernels[m][c][x][y]);
               //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
-              //sum += image_buffer[image_index] * kernels[m][c][x][y];
-              //sum += kernels_buffer[kernel_index] + image[w+x][h+y][c];
             }
           }
-          output[m][w][h] = (float) sum;
+          __m128 hadded = _mm_hadd_ps(sum_vec, sum_vec);
+          hadded = _mm_hadd_ps(hadded, hadded);
+          double s = 0;
+          _mm_store_ss(&s, hadded);
+          output[m][w][h] = (float)s;
         }
       }
     }
