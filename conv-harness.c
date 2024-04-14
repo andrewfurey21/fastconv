@@ -330,37 +330,37 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 {
   int h, w, x, y, c, m;
 
-  int total_width = width + kernel_order;
-  int total_height = height + kernel_order;
+ // int total_width = width + kernel_order;
+ // int total_height = height + kernel_order;
 
-  float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
-  float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
+ // float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
+ // float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
 
 
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
 
-#pragma omp parallel sections
-  {
-  #pragma omp section
-  for (int i = 0; i < total_width; i++) {
-    for (int j = 0; j < total_height; j++) {
-      for (int k = 0; k < nchannels; k++) {
-        image_buffer[calc_image_index(i, j, k, total_width, total_height)] = image[i][j][k];
-      }
-    }
-  }
-
-  #pragma omp section
-  for (int i = 0; i < nkernels; i++) {
-    for (int j = 0; j < nchannels; j++) {
-      for (int k = 0; k < kernel_order; k++) {
-        for (int l = 0; l < kernel_order; l++) {
-          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
-        }
-      }
-    }
-  }
-  }
+//#pragma omp parallel sections
+//  {
+//  #pragma omp section
+//  for (int i = 0; i < total_width; i++) {
+//    for (int j = 0; j < total_height; j++) {
+//      for (int k = 0; k < nchannels; k++) {
+//        image_buffer[calc_image_index(i, j, k, total_width, total_height)] = image[i][j][k];
+//      }
+//    }
+//  }
+//
+//  #pragma omp section
+//  for (int i = 0; i < nkernels; i++) {
+//    for (int j = 0; j < nchannels; j++) {
+//      for (int k = 0; k < kernel_order; k++) {
+//        for (int l = 0; l < kernel_order; l++) {
+//          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
+//        }
+//      }
+//    }
+//  }
+//  }
 
   //goal: only one outer for loop
   #pragma omp parallel for schedule(static)
@@ -371,10 +371,10 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-              int image_index = calc_image_index(w+x, h+y, c, total_width, total_height);
-              int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              sum += image_buffer[image_index] * kernels_buffer[kernel_index];
-              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+              //int image_index = calc_image_index(w+x, h+y, c, total_width, total_height);
+              //int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
+              //sum += image_buffer[image_index] * kernels_buffer[kernel_index];
+              sum += image[w+x][h+y][c] * kernels[m][c][x][y];
             }
           }
           output[m][w][h] = (float) sum;
