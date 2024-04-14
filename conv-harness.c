@@ -337,8 +337,8 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   int total_width = width + kernel_order;
   int total_height = height + kernel_order;
 
-  float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
-  float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
+  double* image_buffer = (double*)malloc(sizeof(double)*(total_width*total_height*nchannels));
+  double* kernels_buffer = (double*)malloc(sizeof(double)*nkernels*nchannels*kernel_order*kernel_order);
 
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
 
@@ -367,14 +367,14 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         double sum = 0.0;
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-        for ( c = 0; c < nchannels; c = c + 4 ) {
+        for ( c = 0; c < nchannels; c = c + 2 ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              __m128 image_vector = _mm_loadu_ps(&image_buffer[image_index]);
-              __m128 kernel_vector = _mm_loadu_ps(&kernels_buffer[kernel_index]);
-              __m128 dp = _mm_dp_ps(image_vector, kernel_vector, 0xFF);
-              float s = 0;
-              _mm_store_ss(&s, dp);
+              __m128d image_vector = _mm_loadu_pd(&image_buffer[image_index]);
+              __m128d kernel_vector = _mm_loadu_pd(&kernels_buffer[kernel_index]);
+              __m128d dp = _mm_dp_pd(image_vector, kernel_vector, 0xFF);
+              double s = 0;
+              _mm_store_sd(&s, dp);
               sum += s;
             }
           }
