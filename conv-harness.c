@@ -341,7 +341,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
 
-  #pragma omp sections
+  #pragma omp parallel sections
   {
     #pragma omp section
     {
