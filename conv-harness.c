@@ -38,6 +38,7 @@
 #include <omp.h>
 #include <math.h>
 #include <stdint.h>
+#include <immintrin.h>
 
 /* the following two definitions of DEBUGGING control whether or not
    debugging information is written out. To put the program into
@@ -315,12 +316,14 @@ void multichannel_conv(float *** image, int16_t **** kernels,
   }
 }
 
-inline int calc_image_index(int i, int j, int k, int total_width, int total_height) {
-  return k * total_height * total_width + j * total_width + i;
+int calc_image_index(int i, int j, int k, int total_width, int total_height, int nchannels) {
+  return i * total_height * nchannels + j * nchannels + k;
+  //return k * total_height * total_width + j * total_width + i;
 }
 
-inline int calc_kernels_index(int i, int j, int k, int l, int nkernels, int nchannels, int kernel_order) {
-  return l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
+int calc_kernels_index(int i, int j, int k, int l, int nkernels, int nchannels, int kernel_order) {
+  return i * nchannels * kernel_order * kernel_order + j * kernel_order * kernel_order + k * kernel_order + l;
+  //return l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
 }
 
 /* the fast version of matmul written by the student */
@@ -330,51 +333,58 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 {
   int h, w, x, y, c, m;
 
- // int total_width = width + kernel_order;
- // int total_height = height + kernel_order;
+  int total_width = width + kernel_order;
+  int total_height = height + kernel_order;
 
- // float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
- // float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
-
+  float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
+  float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
 
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
 
-//#pragma omp parallel sections
-//  {
-//  #pragma omp section
-//  for (int i = 0; i < total_width; i++) {
-//    for (int j = 0; j < total_height; j++) {
-//      for (int k = 0; k < nchannels; k++) {
-//        image_buffer[calc_image_index(i, j, k, total_width, total_height)] = image[i][j][k];
-//      }
-//    }
-//  }
-//
-//  #pragma omp section
-//  for (int i = 0; i < nkernels; i++) {
-//    for (int j = 0; j < nchannels; j++) {
-//      for (int k = 0; k < kernel_order; k++) {
-//        for (int l = 0; l < kernel_order; l++) {
-//          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
-//        }
-//      }
-//    }
-//  }
-//  }
+  for (int i = 0; i < total_width; i++) {
+    for (int j = 0; j < total_height; j++) {
+      for (int k = 0; k < nchannels; k++) {
+        image_buffer[calc_image_index(i, j, k, total_width, total_height, nchannels)] = image[i][j][k];
+      }
+    }
+  }
 
-  //goal: only one outer for loop
-  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < nkernels; i++) {
+    for (int j = 0; j < nchannels; j++) {
+      for (int k = 0; k < kernel_order; k++) {
+        for (int l = 0; l < kernel_order; l++) {
+          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
+        }
+      }
+    }
+  }
+
+  #pragma omp parallel for collapse(3) schedule(static)
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
         double sum = 0.0;
-        for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-              //int image_index = calc_image_index(w+x, h+y, c, total_width, total_height);
-              //int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              //sum += image_buffer[image_index] * kernels_buffer[kernel_index];
-              sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+        for ( c = 0; c < nchannels; c++ ) {
+              int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
+              int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
+              sum += image_buffer[image_index] * kernels_buffer[kernel_index];
+              //
+              __m128 image_vector = _mm_loadu_ps(&image[w+x][h+y][c]);
+              float kernel0 = (float)(kernel_index + 0);
+              float kernel1 = (float)(kernel_index + 1);
+              float kernel2 = (float)(kernel_index + 2);
+              float kernel3 = (float)(kernel_index + 3);
+              __m128 kernel_vector = _mm_set_ps(kernel0, kernel1, kernel2, kernel3);
+              __m128 dp = _mm_dp_ps(image_vector, kernel_vector, 0xFF);
+              float s = 0;
+              _mm_store_ss(&s, dp);
+              sum += s;
+              //__m128 kernel_vector = _mm_loadu_ps(&kernels[m][c][x][y]);
+              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+              //sum += image_buffer[image_index] * kernels[m][c][x][y];
+              //sum += kernels_buffer[kernel_index] + image[w+x][h+y][c];
             }
           }
           output[m][w][h] = (float) sum;
