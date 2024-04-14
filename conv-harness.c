@@ -321,8 +321,9 @@ int calc_image_index(int i, int j, int k, int total_width, int total_height, int
   //return k * total_height * total_width + j * total_width + i;
 }
 
-int calc_kernels_index(int i, int j, int k, int l, int nkernels, int nchannels, int kernel_order) {
-  return i * nchannels * kernel_order * kernel_order + j * kernel_order * kernel_order + k * kernel_order + l;
+int calc_kernels_index(int kernel_index, int channel_index, int x, int y, int nkernels, int nchannels, int kernel_order) {
+  return kernel_index * kernel_order * kernel_order * nchannels + x * kernel_order * nchannels + y * nchannels + channel_index;
+  //return i * nchannels * kernel_order * kernel_order + j * kernel_order * kernel_order + k * kernel_order + l;
   //return l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
 }
 
