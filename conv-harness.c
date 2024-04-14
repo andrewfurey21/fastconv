@@ -364,25 +364,20 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
         __m128 sum_vec = _mm_setzero_ps();
+        for ( c = 0; c < nchannels; c+=4 ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-        for ( c = 0; c < nchannels; c+=4 ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-
               __m128 image_vector = _mm_loadu_ps(&image_buffer[image_index]);
               __m128 kernel_vector = _mm_loadu_ps(&kernels_buffer[kernel_index]);
               __m128 mul_image_kernel = _mm_mul_ps(image_vector, kernel_vector);
               sum_vec = _mm_add_ps(sum_vec, mul_image_kernel);
-              //__m128 kernel_vector = _mm_loadu_ps(&kernels[m][c][x][y]);
-              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
             }
           }
           __m128 hadded = _mm_hadd_ps(sum_vec, sum_vec);
           hadded = _mm_hadd_ps(hadded, hadded);
-          double s = 0;
-          _mm_store_ss(&s, hadded);
-          output[m][w][h] = (float)s;
+          _mm_store_ss(&output[m][w][h], hadded);
         }
       }
     }
