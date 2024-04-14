@@ -326,7 +326,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
-        double sum = 0.0;
+        float sum = 0.0;
         for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
