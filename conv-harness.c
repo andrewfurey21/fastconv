@@ -377,7 +377,10 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
           }
           __m128 hadded = _mm_hadd_ps(sum_vec, sum_vec);
           hadded = _mm_hadd_ps(hadded, hadded);
-          _mm_store_ss(&output[m][w][h], hadded);
+          __m128d hadded_d = _mm_castps_pd(hadded);
+          double s = 0;
+          _mm_store_sd(&s, hadded_d);
+          output[m][w][h] = (float)s;
         }
       }
     }
