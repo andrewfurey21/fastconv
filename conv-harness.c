@@ -336,7 +336,12 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
   float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
 
+
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
+
+#pragma omp parallel sections
+  {
+  #pragma omp section
   for (int i = 0; i < total_width; i++) {
     for (int j = 0; j < total_height; j++) {
       for (int k = 0; k < nchannels; k++) {
@@ -345,6 +350,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     }
   }
 
+  #pragma omp section
   for (int i = 0; i < nkernels; i++) {
     for (int j = 0; j < nchannels; j++) {
       for (int k = 0; k < kernel_order; k++) {
@@ -353,6 +359,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         }
       }
     }
+  }
   }
 
   //goal: only one outer for loop
@@ -367,6 +374,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
               sum += image_buffer[image_index] * kernels_buffer[kernel_index];
+              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
             }
           }
           output[m][w][h] = (float) sum;
