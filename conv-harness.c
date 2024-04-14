@@ -360,27 +360,6 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     }
   }
 
-  //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
-  //#pragma omp parallel for collapse(3) schedule(static)
-  //for ( m = 0; m < nkernels; m++ ) {
-  //  for ( w = 0; w < width; w++ ) {
-  //    for ( h = 0; h < height; h++ ) {
-  //      double sum = 0.0f;
-  //        for ( x = 0; x < kernel_order; x++) {
-  //          for ( y = 0; y < kernel_order; y++ ) {
-  //            for ( c = 0; c < nchannels; c++) {
-  //            int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
-  //            int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-  //            sum += image_buffer[image_index] * kernels_buffer[kernel_index];
-  //          }
-  //        }
-  //        printf("Index m:%d, w:%d, h:%d = %f\n", m, w, h, (float)sum);
-  //        output[m][w][h] = (float)sum;
-  //      }
-  //    }
-  //  }
-  //}
-
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
@@ -399,11 +378,10 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
           }
 
           __m128d hadded = _mm_hadd_pd(sum_vec, sum_vec);
-          hadded = _mm_hadd_pd(hadded, hadded);
           double sum = 0.0f;
           _mm_store_sd(&sum, hadded);
           output[m][w][h] = (float)sum;
-          printf("Index m:%d, w:%d, h:%d = %f\n", m, w, h, output[m][w][h]);
+          //printf("Index m:%d, w:%d, h:%d = %f\n", m, w, h, output[m][w][h]);
         }
       }
     }
