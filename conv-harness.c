@@ -322,7 +322,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 {
   int h, w, x, y, c, m;
 
-  #pragma omp parallel for schedule(static)
+  #pragma omp parallel for collapse(3) private(m, w, h, c, x, y)
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
