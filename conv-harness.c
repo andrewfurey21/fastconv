@@ -372,10 +372,10 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
               sum += image_buffer[image_index] * kernels_buffer[kernel_index];
               //
               __m128 image_vector = _mm_loadu_ps(&image[w+x][h+y][c]);
-              float kernel0 = (float)(kernel_index + 0);
-              float kernel1 = (float)(kernel_index + 1);
-              float kernel2 = (float)(kernel_index + 2);
-              float kernel3 = (float)(kernel_index + 3);
+              float kernel0 = (float)(kernels_buffer[kernel_index + 0]);
+              float kernel1 = (float)(kernels_buffer[kernel_index + 1]);
+              float kernel2 = (float)(kernels_buffer[kernel_index + 2]);
+              float kernel3 = (float)(kernels_buffer[kernel_index + 3]);
               __m128 kernel_vector = _mm_set_ps(kernel0, kernel1, kernel2, kernel3);
               __m128 dp = _mm_dp_ps(image_vector, kernel_vector, 0xFF);
               float s = 0;
