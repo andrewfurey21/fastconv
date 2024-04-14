@@ -315,6 +315,14 @@ void multichannel_conv(float *** image, int16_t **** kernels,
   }
 }
 
+inline int calc_image_index(int i, int j, int k, int total_width, int total_height) {
+  return k * total_height * total_width + j * total_width + i;
+}
+
+inline int calc_kernels_index(int i, int j, int k, int l, int nkernels, int nchannels, int kernel_order) {
+  return l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
+}
+
 /* the fast version of matmul written by the student */
 void student_conv(float *** image, int16_t **** kernels, float *** output,
                int width, int height, int nchannels, int nkernels,
@@ -328,11 +336,11 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
   float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
 
+  //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
   for (int i = 0; i < total_width; i++) {
     for (int j = 0; j < total_height; j++) {
       for (int k = 0; k < nchannels; k++) {
-        int image_index = k * total_height * total_width + j * total_width + i;
-        image_buffer[image_index] = image[i][j][k];
+        image_buffer[calc_image_index(i, j, k, total_width, total_height)] = image[i][j][k];
       }
     }
   }
@@ -341,8 +349,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     for (int j = 0; j < nchannels; j++) {
       for (int k = 0; k < kernel_order; k++) {
         for (int l = 0; l < kernel_order; l++) {
-          int kernel_index = l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
-          kernels_buffer[kernel_index] = kernels[i][j][k][l];
+          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
         }
       }
     }
@@ -357,8 +364,8 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-              int image_index = c * total_height * total_width + (h+y) * total_width + (w+x);
-              int kernel_index = y * kernel_order * nchannels * nkernels + x * nchannels * nkernels + c * nkernels + m;
+              int image_index = calc_image_index(w+x, h+y, c, total_width, total_height);
+              int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
               sum += image_buffer[image_index] * kernels_buffer[kernel_index];
             }
           }
