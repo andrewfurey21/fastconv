@@ -341,19 +341,28 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 
   //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
 
-  for (int i = 0; i < total_width; i++) {
-    for (int j = 0; j < total_height; j++) {
-      for (int k = 0; k < nchannels; k++) {
-        image_buffer[calc_image_index(i, j, k, total_width, total_height, nchannels)] = image[i][j][k];
+  #pragma omp sections
+  {
+    #pragma omp section
+    {
+      for (int i = 0; i < total_width; i++) {
+        for (int j = 0; j < total_height; j++) {
+          for (int k = 0; k < nchannels; k++) {
+            image_buffer[calc_image_index(i, j, k, total_width, total_height, nchannels)] = image[i][j][k];
+          }
+        }
       }
     }
-  }
 
-  for (int i = 0; i < nkernels; i++) {
-    for (int j = 0; j < nchannels; j++) {
-      for (int k = 0; k < kernel_order; k++) {
-        for (int l = 0; l < kernel_order; l++) {
-          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
+    #pragma omp section
+    {
+      for (int i = 0; i < nkernels; i++) {
+        for (int j = 0; j < nchannels; j++) {
+          for (int k = 0; k < kernel_order; k++) {
+            for (int l = 0; l < kernel_order; l++) {
+              kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
+            }
+          }
         }
       }
     }
