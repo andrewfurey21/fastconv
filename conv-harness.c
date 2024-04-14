@@ -365,21 +365,19 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
         double sum = 0.0;
-          for ( x = 0; x < kernel_order; x++) {
-            for ( y = 0; y < kernel_order; y++ ) {
-        for ( c = 0; c < nchannels; c = c + 2 ) {
+        for ( x = 0; x < kernel_order; x++) {
+          for ( y = 0; y < kernel_order; y++ ) {
+            for ( c = 0; c < nchannels; c = c + 2 ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              __m128d image_vector = _mm_loadu_pd(&image_buffer[image_index]);
-              __m128d kernel_vector = _mm_loadu_pd(&kernels_buffer[kernel_index]);
+              __m128d image_vector = _mm_load_pd(&image_buffer[image_index]);
+              __m128d kernel_vector = _mm_load_pd(&kernels_buffer[kernel_index]);
               __m128d dp = _mm_dp_pd(image_vector, kernel_vector, 0xFF);
-              double s = 0;
-              _mm_store_sd(&s, dp);
-              sum += s;
+              sum += _mm_cvtsd_f64(dp);
             }
           }
           output[m][w][h] = (float) sum;
-        }
+        } 
       }
     }
   }
