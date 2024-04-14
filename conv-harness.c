@@ -322,33 +322,33 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 {
   int h, w, x, y, c, m;
 
-  float* image_buffer = (float*)malloc(sizeof(float)*width*height*nchannels);
+  int total_width = width + kernel_order;
+  int total_height = height + kernel_order;
+
+  float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
   float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
 
-  //TODO:check that multiplication doesn't lead to overflow
-  #pragma omp parallel for schedule(static)
-  for ( w = 0; w < width; w++ ) {
-    for ( h = 0; h < height; h++ ) {
-      for ( c = 0; c < nchannels; c++ ) {
-        int image_index = w*height*nchannels + h*nchannels + c;
-        //printf("Image index:%d\n", image_index);
-        image_buffer[image_index] = image[w][h][c];
+  for (int i = 0; i < total_width; i++) {
+    for (int j = 0; j < total_height; j++) {
+      for (int k = 0; k < nchannels; k++) {
+        int image_index = k * total_height * total_width + j * total_width + i;
+        image_buffer[image_index] = image[i][j][k];
       }
     }
   }
 
-  #pragma omp parallel for schedule(static)
-  for ( m = 0; m < nkernels; m++ ) {
-    for ( c = 0; c < nchannels; c++ ) {
-      for ( x = 0; x < kernel_order; x++) {
-        for ( y = 0; y < kernel_order; y++ ) {
-          int kernel_index = m*nchannels*kernel_order*kernel_order + c * kernel_order*kernel_order + x * kernel_order + y;
-          kernels_buffer[kernel_index] =  kernels[m][c][x][y];
+  for (int i = 0; i < nkernels; i++) {
+    for (int j = 0; j < nchannels; j++) {
+      for (int k = 0; k < kernel_order; k++) {
+        for (int l = 0; l < kernel_order; l++) {
+          int kernel_index = l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
+          kernels_buffer[kernel_index] = kernels[i][j][k][l];
         }
       }
     }
   }
 
+  //goal: only one outer for loop
   #pragma omp parallel for schedule(static)
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
@@ -357,10 +357,9 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         for ( c = 0; c < nchannels; c++ ) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
-              int image_index = (w+x)*height*nchannels + (h+y)*nchannels + c;
-              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
-              int kernel_index = m*nchannels*kernel_order*kernel_order + c * kernel_order*kernel_order + x * kernel_order + y;
-              sum += image_buffer[image_index] + kernels_buffer[kernel_index];
+              int image_index = c * total_height * total_width + (h+y) * total_width + (w+x);
+              int kernel_index = y * kernel_order * nchannels * nkernels + x * nchannels * nkernels + c * nkernels + m;
+              sum += image_buffer[image_index] * kernels_buffer[kernel_index];
             }
           }
           output[m][w][h] = (float) sum;
@@ -372,10 +371,6 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
 
 int main(int argc, char ** argv)
 {
-  //float image[W][H][C];
-  //float kernels[M][C][K][K];
-  //float output[M][W][H];
-  
   float *** image;
   int16_t **** kernels;
   float *** control_output, *** output;
