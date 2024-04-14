@@ -171,7 +171,8 @@ struct timeval seedtime;
 
   /* use the microsecond part of the current time as a pseudorandom seed */
   gettimeofday(&seedtime, NULL);
-  seed = seedtime.tv_usec;
+  //seed = seedtime.tv_usec;
+  seed = 5;
   srandom(seed);
 
   /* fill the matrix with random numbers */
@@ -209,7 +210,8 @@ struct timeval seedtime;
 
   /* use the microsecond part of the current time as a pseudorandom seed */
   gettimeofday(&seedtime, NULL);
-  seed = seedtime.tv_usec;
+  //seed = seedtime.tv_usec;
+  seed = 5;
   srandom(seed);
 
   /* fill the matrix with random numbers */
@@ -337,15 +339,13 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   int total_width = width + kernel_order;
   int total_height = height + kernel_order;
 
-  float* image_buffer = (float*)malloc(sizeof(float)*(total_width*total_height*nchannels));
-  float* kernels_buffer = (float*)malloc(sizeof(float)*nkernels*nchannels*kernel_order*kernel_order);
-
-  //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
+  double* image_buffer = (double*)malloc(sizeof(double)*(total_width*total_height*nchannels));
+  double* kernels_buffer = (double*)malloc(sizeof(double)*nkernels*nchannels*kernel_order*kernel_order);
 
   for (int i = 0; i < total_width; i++) {
     for (int j = 0; j < total_height; j++) {
       for (int k = 0; k < nchannels; k++) {
-        image_buffer[calc_image_index(i, j, k, total_width, total_height, nchannels)] = image[i][j][k];
+        image_buffer[calc_image_index(i, j, k, total_width, total_height, nchannels)] = (double)image[i][j][k];
       }
     }
   }
@@ -354,45 +354,62 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     for (int j = 0; j < nchannels; j++) {
       for (int k = 0; k < kernel_order; k++) {
         for (int l = 0; l < kernel_order; l++) {
-          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = kernels[i][j][k][l];
+          kernels_buffer[calc_kernels_index(i, j, k, l, nkernels, nchannels, kernel_order)] = (double)kernels[i][j][k][l];
         }
       }
     }
   }
 
-  #pragma omp parallel for collapse(3) schedule(static)
+  //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
+  //#pragma omp parallel for collapse(3) schedule(static)
+  //for ( m = 0; m < nkernels; m++ ) {
+  //  for ( w = 0; w < width; w++ ) {
+  //    for ( h = 0; h < height; h++ ) {
+  //      double sum = 0.0f;
+  //        for ( x = 0; x < kernel_order; x++) {
+  //          for ( y = 0; y < kernel_order; y++ ) {
+  //            for ( c = 0; c < nchannels; c++) {
+  //            int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
+  //            int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
+  //            sum += image_buffer[image_index] * kernels_buffer[kernel_index];
+  //          }
+  //        }
+  //        printf("Index m:%d, w:%d, h:%d = %f\n", m, w, h, (float)sum);
+  //        output[m][w][h] = (float)sum;
+  //      }
+  //    }
+  //  }
+  //}
+
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
-        __m128 sum_vec = _mm_setzero_ps();
-        double sum = 0.0f;
-        //for ( c = 0; c < nchannels; c++) {
-        for ( c = 0; c < nchannels; c+=4) {
+        __m128d sum_vec = _mm_setzero_pd();
+        for ( c = 0; c < nchannels; c+=2) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
-              //sum += image_buffer[image_index] * kernels_buffer[kernel_index];
-              //sum += image_buffer[image_index] +
-              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
-              __m128 image_vector = _mm_loadu_ps(&image_buffer[image_index]);
-              __m128 kernel_vector = _mm_loadu_ps(&kernels_buffer[kernel_index]);
-              __m128 mul_image_kernel = _mm_mul_ps(image_vector, kernel_vector);
-              sum_vec = _mm_add_ps(sum_vec, mul_image_kernel);
+
+              __m128d image_vector = _mm_loadu_pd(&image_buffer[image_index]);
+              __m128d kernel_vector = _mm_loadu_pd(&kernels_buffer[kernel_index]);
+              __m128d mul_image_kernel = _mm_mul_pd(image_vector, kernel_vector);
+              sum_vec = _mm_add_pd(sum_vec, mul_image_kernel);
             }
           }
 
-          __m128 hadded = _mm_hadd_ps(sum_vec, sum_vec);
-          hadded = _mm_hadd_ps(hadded, hadded);
-          float s = 0;
-          _mm_store_ss(&s, hadded);
-          _mm_store_ss(&output[m][w][h], hadded);
-          output[m][w][h] = (float)s;
-          //output[m][w][h] = (float)sum;
+          __m128d hadded = _mm_hadd_pd(sum_vec, sum_vec);
+          hadded = _mm_hadd_pd(hadded, hadded);
+          double sum = 0.0f;
+          _mm_store_sd(&sum, hadded);
+          output[m][w][h] = (float)sum;
+          printf("Index m:%d, w:%d, h:%d = %f\n", m, w, h, output[m][w][h]);
         }
       }
     }
   }
+  free(image_buffer);
+  free(kernels_buffer);
 }
 
 int main(int argc, char ** argv)
