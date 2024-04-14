@@ -316,6 +316,7 @@ void multichannel_conv(float *** image, int16_t **** kernels,
   }
 }
 
+
 int calc_image_index(int i, int j, int k, int total_width, int total_height, int nchannels) {
   return i * total_height * nchannels + j * nchannels + k;
   //return k * total_height * total_width + j * total_width + i;
@@ -340,8 +341,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
   double* image_buffer = (double*)malloc(sizeof(double)*(total_width*total_height*nchannels));
   double* kernels_buffer = (double*)malloc(sizeof(double)*nkernels*nchannels*kernel_order*kernel_order);
 
-  //TODO:improve parellization here, setting up image_buffer and kernels buffer are independent of eachother
-
+  //Creating a single buffer containing all image values
   for (int i = 0; i < total_width; i++) {
     for (int j = 0; j < total_height; j++) {
       for (int k = 0; k < nchannels; k++) {
@@ -350,6 +350,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     }
   }
 
+  //Creating a single kernel containing all kernel values
   for (int i = 0; i < nkernels; i++) {
     for (int j = 0; j < nchannels; j++) {
       for (int k = 0; k < kernel_order; k++) {
@@ -368,11 +369,18 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
         for ( x = 0; x < kernel_order; x++) {
           for ( y = 0; y < kernel_order; y++ ) {
             for ( c = 0; c < nchannels; c = c + 2 ) {
+              // Loading image buffer into __m128d
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
-              int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
               __m128d image_vector = _mm_load_pd(&image_buffer[image_index]);
+
+              // Loading kernel buffer into __m128d
+              int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
               __m128d kernel_vector = _mm_load_pd(&kernels_buffer[kernel_index]);
+
+              // Calculating dot product
               __m128d dp = _mm_dp_pd(image_vector, kernel_vector, 0xFF);
+
+              //Summing the dotproduct
               sum += _mm_cvtsd_f64(dp);
             }
           }
