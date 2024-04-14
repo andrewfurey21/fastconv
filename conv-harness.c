@@ -370,7 +370,7 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
 
-              __m128 image_vector = _mm_loadu_ps(&image[w+x][h+y][c]);
+              __m128 image_vector = _mm_loadu_ps(&image_buffer[image_index]);
               float kernel0 = (float)(kernels_buffer[kernel_index + 0]);
               float kernel1 = (float)(kernels_buffer[kernel_index + 1]);
               float kernel2 = (float)(kernels_buffer[kernel_index + 2]);
