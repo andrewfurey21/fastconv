@@ -321,8 +321,9 @@ int calc_image_index(int i, int j, int k, int total_width, int total_height, int
   //return k * total_height * total_width + j * total_width + i;
 }
 
-int calc_kernels_index(int i, int j, int k, int l, int nkernels, int nchannels, int kernel_order) {
-  return i * nchannels * kernel_order * kernel_order + j * kernel_order * kernel_order + k * kernel_order + l;
+int calc_kernels_index(int kernel_index, int channel_index, int x, int y, int nkernels, int nchannels, int kernel_order) {
+  return kernel_index * kernel_order * kernel_order * nchannels + x * kernel_order * nchannels + y * nchannels + channel_index;
+  //return i * nchannels * kernel_order * kernel_order + j * kernel_order * kernel_order + k * kernel_order + l;
   //return l * kernel_order * nchannels * nkernels + k * nchannels * nkernels + j * nkernels + i;
 }
 
@@ -364,23 +365,30 @@ void student_conv(float *** image, int16_t **** kernels, float *** output,
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
         __m128 sum_vec = _mm_setzero_ps();
-        for ( c = 0; c < nchannels; c+=4 ) {
+        double sum = 0.0f;
+        //for ( c = 0; c < nchannels; c++) {
+        for ( c = 0; c < nchannels; c+=4) {
           for ( x = 0; x < kernel_order; x++) {
             for ( y = 0; y < kernel_order; y++ ) {
               int image_index = calc_image_index(w+x, h+y, c, total_width, total_height, nchannels);
               int kernel_index = calc_kernels_index(m, c, x, y, nkernels, nchannels, kernel_order);
+              //sum += image_buffer[image_index] * kernels_buffer[kernel_index];
+              //sum += image_buffer[image_index] +
+              //sum += image[w+x][h+y][c] * kernels[m][c][x][y];
               __m128 image_vector = _mm_loadu_ps(&image_buffer[image_index]);
               __m128 kernel_vector = _mm_loadu_ps(&kernels_buffer[kernel_index]);
               __m128 mul_image_kernel = _mm_mul_ps(image_vector, kernel_vector);
               sum_vec = _mm_add_ps(sum_vec, mul_image_kernel);
             }
           }
+
           __m128 hadded = _mm_hadd_ps(sum_vec, sum_vec);
           hadded = _mm_hadd_ps(hadded, hadded);
-          __m128d hadded_d = _mm_castps_pd(hadded);
-          double s = 0;
-          _mm_store_sd(&s, hadded_d);
+          float s = 0;
+          _mm_store_ss(&s, hadded);
+          _mm_store_ss(&output[m][w][h], hadded);
           output[m][w][h] = (float)s;
+          //output[m][w][h] = (float)sum;
         }
       }
     }
